@@ -85,7 +85,39 @@
 {{--                            <a class="button" href="{{ route('next',$node->id) }}">No</a>--}}
 
 
-                            @if ($relation === null)
+{{--                            @if ($relation === null && !Cache::has('SmartGuess_Executed'))--}}
+
+                            @if ($relation === null && !Cache::has('SmartGuess_Executed'))
+                                {{--                                <form action="/add" method="post">--}}
+                                <form action="{{ route('Add') }}" method="POST">
+
+
+                                    @csrf
+                                    <h3>add character</h3>
+                                    <input type="hidden" value="{{ $node->id }}" name="current_node" />
+
+                                    <div class="form-group">
+                                        {{--                                        <label for="q">Question</label>--}}
+                                        {{--                                        <input type="text" name="question" id="q" autofocus />--}}
+                                        <label>Question to distinguish character</label>
+
+                                        <input type="text" name="question" class="form-control collumntextSupportedContent" placeholder="question">
+
+                                    </div>
+
+                                    <div class="form-group">
+                                        {{--                                        <label for="a">Answer</label>--}}
+                                        {{--                                        <input type="text" name="answer" id="a" />--}}
+                                        <label>Final answer / Character</label>
+
+                                        <input type="text" name="answer" class="form-control collumntextSupportedContent" placeholder="answer">
+
+                                    </div>
+
+                                    <button type="submit" onclick="addExtraPoints();">Submit</button>
+                                </form>
+
+                            @elseif ($relation === null && Cache::has('SmartGuess_Failed'))
 {{--                                <form action="/add" method="post">--}}
                                     <form action="{{ route('Add') }}" method="POST">
 
@@ -114,7 +146,7 @@
 
                                         <button type="submit" onclick="addExtraPoints();">Submit</button>
                                     </form>
-                            @else
+                            @elseif ($relation !== null)
                                 <div class="row justify-content-center">
                                     <div class="col-8 col-sm-7">
                                         <span class="timer">5 seconds left.<br /><br /></span>

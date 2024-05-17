@@ -6,14 +6,17 @@ use App\Models\History;
 use App\Models\Node;
 use App\Models\Relation;
 use App\Models\Score;
+use App\Models\SuccessNode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\File;
 
 
+use PHPUnit\Util\Test;
 use function Ramsey\Uuid\setNodeProvider;
 
 class GameController extends Controller
@@ -76,7 +79,7 @@ class GameController extends Controller
 
         History::create([
             'node' => $node->id,
-            'parent_node' => $parentId
+            'name' => $node->name
         ]);
 
 
@@ -129,11 +132,19 @@ class GameController extends Controller
                 }
             }
 
+
+
             // Check if current visited node is in the visited nodes list
             $isVisited = in_array($currentVisitedNode, $visitedNodeIds);
             // Store the visitation status of the node
             $results[$FourTimesNode] = $isVisited ? 'visited' : 'not visited';
         }
+
+
+
+//        $test = $result-id;
+//        dd($successNodeIds);
+
 
         // Extract the nodes that were visited
         $visitedNodeIds = [];
@@ -148,9 +159,51 @@ class GameController extends Controller
             return null; // or any other appropriate action
         }
 
+
+        Cache::increment('SmartGuess_Executed');
+
+
+        if(Cache::has('SmartGuess_Executed') && !Cache::has('FindFourTimesNode_InSmartGuess_SuccessNodes_Executed')){
+
+            $FourTimes_And_SmartGuessSuccessNode = $this->FindFourTimesNode_InSmartGuess_SuccessNodes($visitedNodeIds);
+
+          if ($FourTimes_And_SmartGuessSuccessNode !== null){
+
+                  $randomKey = array_rand($FourTimes_And_SmartGuessSuccessNode);
+                  $randomNodeId = $FourTimes_And_SmartGuessSuccessNode[$randomKey];
+//dd($randomNodeId);
+                  $relation = Relation::where('node_yes', $randomNodeId)
+                      ->orWhere('node_no', $randomNodeId)
+                      ->first();
+    //            dd($relation);
+
+                  if ($relation) {
+                      $parentId = $relation->parent_node;
+                      if ($parentId) {
+                          return $parentId;
+                      }
+                  }
+
+          }
+
+        }
+
+
+//        Cache::get('FindFourTimesNode_InSmartGuess_SuccessNodes_Executed');
+
+
+        //create cash when SmartGuess is Executed
+
+//        Cache::put('SmartGuess_InputNode', $currentVisitedNode, 60);
+
+//        $test = Cache::get('SmartGuess_InputNode');
+//
+//dd($test);
+
         // Continue with the rest of the function if visitedNodeIds is not empty
         $randomKey = array_rand($visitedNodeIds);
         $randomNodeId = $visitedNodeIds[$randomKey];
+
 
         $relation = Relation::where('node_yes', $randomNodeId)
             ->orWhere('node_no', $randomNodeId)
@@ -165,6 +218,82 @@ class GameController extends Controller
 
         return null; // Return null if no parent ID found
     }
+
+
+
+
+
+
+//    function findMatchingObjects($results) {
+//        $successNodeIds = SuccessNode::pluck('node')->toArray();
+
+
+// Function to find matching numbers
+//        function findMatchingNumbers($visitedNodeIds) {
+//             Fetch the SmartGuess_SuccessNodes from the database
+//            $SmartGuess_SuccessNodes = SuccessNode::pluck('node')->toArray();
+
+    // Initialize the $test array
+//            $test = [];
+
+    // Loop through each SmartGuess_SuccessNode
+//            foreach ($SmartGuess_SuccessNodes as $SmartGuess_SuccessNode) {
+    // Check if the SmartGuess_SuccessNode exists in visitedNodeIds
+//                if (in_array($SmartGuess_SuccessNode, $visitedNodeIds)) {
+    // If it exists, add it to $test array
+//                    $test[] = $SmartGuess_SuccessNode;
+//                }
+//            }
+//
+//            dd($test); // Debugging output
+//
+//            return $test;
+//        }
+
+
+
+    function FindFourTimesNode_InSmartGuess_SuccessNodes($visitedNodeIds) {
+        // Fetching success nodes from the database as an array of integers
+        $SmartGuess_SuccessNodes = SuccessNode::pluck('node')->toArray();
+
+        $FourTimes_And_SmartGuessSuccess_Node = [];
+
+        // Debugging output
+        echo "Visited Node IDs: ";
+        print_r($visitedNodeIds);
+        echo "SmartGuess Success Nodes: ";
+        print_r($SmartGuess_SuccessNodes);
+
+        // Loop through each visited node ID
+        foreach ($visitedNodeIds as $visitedNodeId) {
+            // Debugging output for each iteration
+            echo "Checking if $visitedNodeId is in success nodes...\n";
+            if (in_array($visitedNodeId, $SmartGuess_SuccessNodes)) {
+                echo "Match found: $visitedNodeId\n";
+                $FourTimes_And_SmartGuessSuccessNode[] = $visitedNodeId;
+            }
+        }
+
+        // Output matches for debugging purposes
+
+        if (empty($FourTimes_And_SmartGuessSuccessNode)) {
+            $FourTimes_And_SmartGuessSuccessNode = null;
+            Cache::increment('FindFourTimesNode_InSmartGuess_SuccessNodes_Failed');
+        }
+
+        return $FourTimes_And_SmartGuessSuccessNode;
+    }
+
+
+
+// Find matches
+//        $matchingNumbers = findMatchingNumbers($results);
+//    }
+
+
+
+
+
 
     /**
      * Display a listing of the resource.
@@ -200,6 +329,45 @@ class GameController extends Controller
 
         }
 
+//        if (Cache::has('SmartGuess_Executed') && $node->question && Str::startsWith("answer", Str::lower($node->question))) {
+
+        $answer = $node->answer;
+        if (Cache::has('SmartGuess_Executed') && !Cache::has('SmartGuess_Failed') && Node::where('answer', $answer)->exists()) {
+            $parentNode = Node::where('answer', $answer)->first();
+
+            if (Relation::where('parent_node', $node->id)->exists()) {
+                $relation = Relation::where('parent_node', $node->id)->first();
+                $nodeYes = $relation->node_yes;
+
+                // Check if a SuccessNode already exists for the current nodeYes
+                if (!SuccessNode::where('node', $nodeYes)->exists()) {
+                    // Create the SuccessNode record
+                    SuccessNode::create([
+                        'node' => $nodeYes,
+                    ]);
+
+
+                    $latestSuccessNode = SuccessNode::latest()->first();
+                    $latestSuccessNode->delete();
+
+                    $test = Node::find($nodeYes);
+
+                    $this->set_node_history($test);
+
+                    // Log information
+                    Log::info('SuccessNode created for node with ID ' . $test);
+                }
+            } else {
+                // Log that the conditions were not met
+                Log::info('Conditions not met for creating SuccessNode for node with ID ' . $node->id);
+
+                $this->set_node_history($node);
+
+                return $this->Register_SmartGuess_SuccessNote($parentNode);
+            }
+
+        }
+
         if ($node->relation) {
             if ($node->question && Str::startsWith("answer", Str::lower($node->question))) {
                 $node->question = "Is this your character?";
@@ -224,7 +392,6 @@ class GameController extends Controller
     {
 
 
-
         // Capture each click
         Cache::increment('click_count');
 
@@ -240,11 +407,9 @@ class GameController extends Controller
         // get the node from kolom "node_no" in the same row as the $currentNodeId
 
 
-
 //////////////////function execute SmartGues after the player has answered 2 questions//////////////////////
         if ($totalClicks == 2) {
             $smartGuessInputNodeId = $relation->node_no;
-
 
             $smartGuessInputNode = Node::findOrFail($smartGuessInputNodeId);
             return $this->SmartGuess($smartGuessInputNode->id, $totalClicks);
@@ -259,31 +424,33 @@ class GameController extends Controller
             $node = $random_node_guess;
         }
         */
+
+        if (Cache::has('SmartGuess_Executed') && $node->relation === null && !Cache::has('SmartGuess_Failed')) {
+
+            Cache::increment('SmartGuess_Failed');
+            //             Retrieve SmartGuess cache for input SmartGuess
+
+//            dd($node);
+            return $this->ResetTo_SmartGuessInputNode($node);
+
+        }
+
         if($node->question && Str::startsWith("answer", Str::lower($node->question))) {
             $node->question = "Is this your character?";
+
+//            dd($node);
+
         }
-        if($node->relation !== null && $node->relation->id !== null) {
+        if($node->relation !== null && $node->relation->id !== null ) {
             $relation = $node->relation->no;
+
+//            dd($relation);
+
+
         }
         return view('game.no',compact('node', 'relation'));
 
     }
-
-
-
-//    public function SmartGuess_YesNode($currentNodeId, $totalClicks) {
-//        if ($totalClicks == 2) {
-//            $relation = Relation::where('parent_node', $currentNodeId)->first();
-//            $smartGuessPredictionNodeId  = $this->handleLoopUpRequest($currentNodeId);
-//
-//            if ($smartGuessPredictionNodeId) {
-//                return redirect()->route('SmartGuess', ['node' => $smartGuessPredictionNodeId]);
-//            }
-//        }
-//
-//         Handle other logic for SmartGuess_YesNode if needed
-//    }
-
 
 
 
@@ -303,6 +470,7 @@ class GameController extends Controller
             }
         }
 
+
         // Example data to pass to the view, you may replace this as per your logic
         $node = Node::find($currentNodeId);
 
@@ -311,6 +479,105 @@ class GameController extends Controller
     }
 
 
+    /**
+     * Display a listing of the resource.
+     *
+     * @param  \App\Models\Node $node
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
+     */
+    public function ResetTo_SmartGuessInputNode(Node $node) {
+
+        $SmartGuess_InputNode = Cache::get('SmartGuess_InputNode');
+//dd($SmartGuess_InputNode);
+
+
+        $SmartGuess_PredictionCharater_Node = $node->id;
+
+
+        $SmartGuess_PredictionCharater_Path = [];
+
+        // Find the node based on the ID
+        $node = Node::find($SmartGuess_PredictionCharater_Node);
+
+        // Check if the node exists
+        if ($node) {
+            // Loop until there is no parent node found
+            while ($node !== null) {
+                // Search for the node in the Relation model
+                $relation = Relation::where('node_yes', $node->id)
+                    ->orWhere('node_no', $node->id)
+                    ->first();
+
+                if ($relation) {
+                    // Get the parent node
+                    $parentId = $relation->parent_node;
+                    // Check if $parentId is an integer (node ID)
+                    if (is_int($parentId)) {
+                        // Store the visited node ID
+                        $SmartGuess_PredictionCharater_Path[] = $node->id;
+
+                        // Update $node for the next iteration
+                        $node = Node::find($parentId);
+                    } else {
+                        // If $parentId is not an integer, exit the loop
+                        $node = null;
+                    }
+                } else {
+                    // If no parent node is found, exit the loop
+                    $node = null;
+                }
+            }
+
+
+            $SmartGuess_PredictionCharater_Path = array_reverse($SmartGuess_PredictionCharater_Path);
+
+            // Check if current visited node is in the visited nodes list
+            $SmartGuess_InputNode = $SmartGuess_PredictionCharater_Path[1];
+
+//            dd($SmartGuess_InputNode);
+            $node = Node::find($SmartGuess_InputNode);
+//dd($node);
+
+            // Return the view with the node and SmartGuess_InputNode
+            return view('SmartGuessFailed', ['node' => $node, 'SmartGuess_InputNode' => $SmartGuess_InputNode]);
+
+        }
+    }
+
+
+    public function Register_SmartGuess_SuccessNote(Node $node) {
+        // Search for the node in the Relation model
+        $relation = Relation::where('node_yes', $node->id)
+            ->orWhere('node_no', $node->id)
+            ->first();
+
+        if ($relation) {
+            $parentId = $relation->parent_node;
+
+            // Create the SuccessNode record
+            SuccessNode::create([
+                'node' => $node->id,
+            ]);
+
+            return view('game.gameover');
+        }
+
+
+
+        function getCachedKeys()
+        {
+            $cachePath = storage_path('framework/cache/data');
+            $files = File::allFiles($cachePath);
+            $keys = [];
+
+            foreach ($files as $file) {
+                $fileName = $file->getFilename();
+                // Process the filename to get the cache key
+                $keys[] = $fileName;
+            }
+
+            return $keys;
+        }}
 
 
     ///voor het toevoegen van een de juiste character en een vraags als de gebruiker heeft gewonnen.
