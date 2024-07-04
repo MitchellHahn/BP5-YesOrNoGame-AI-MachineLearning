@@ -1,5 +1,5 @@
 <?php
-
+//voor geschiedenis
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +11,7 @@ class History extends Model
     public $timestamps = false;
     protected $table = 'node_history';
     protected $fillable = [
-        //table tijd
+        //table node_history
         'datum', 'node', 'id', 'parent_node',
     ];
 
@@ -20,14 +20,6 @@ class History extends Model
             return $this->belongsTo(node::class, 'node' );
         }
 
-    //public function relation()
-    //{
-      //  return $this->hasOne(relation::class, 'parent_node');
-    //}
 
-//    public function yes()
-//    {
-//        return $this->hasOneThrough(node::class, relation::class, 'id', 'parent_node', null, 'node_yes');
-//    }
 
 }

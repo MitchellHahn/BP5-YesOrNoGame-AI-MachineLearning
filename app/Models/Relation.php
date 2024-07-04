@@ -12,24 +12,24 @@ class relation extends Model
     public $timestamps = false;
     protected $table = 'node_relation';
     protected $fillable = [
-        //table tijd
-        'node_yes', 'node_no', 'parent_node',
+        //table node_relation
+        'node_yes', 'node_no', 'parent_node', 'id',
     ];
 
-//    public function bedrijf()
-//    {
-//        return $this->belongsTo(Bedrijf::class );
-//    }
 
+// eloquent relatie voor node
     public function node()
     {
         return $this->belongsTo(node::class );
     }
 
+    // eloquent relatie voor  ja node
     public function yes()
     {
         return $this->belongsTo(node::class, 'node_yes');
     }
+
+    // eloquent relatie voor nee node
 
     public function no()
     {

@@ -1,45 +1,23 @@
 <?php //@extends('layouts.app')?>
-{{--@extends('layouts.user.functietoevoegen.layout')--}}
+{{--homee/start--}}
 <h4>Game</h4>
 <br>
 start
-{{--@foreach($nodes as $node)--}}
+
+
+{{-- toon vraag van node --}}
     <div>{{ $node->question }}</div>
+
+{{-- toon antwoord node --}}
     <div>{{ $node->asnwer }}</div>
 
+
+{{-- voert de functie van route "yes" --}}
     <a class="button" href="{{ route('Yes',$node->id) }}">Yes</a>
+
+{{-- voert de functie van route "no" --}}
     <a class="button" href="{{ route('No',$node->id) }}">No</a>
 
-{{--@endforeach--}}
 
 
-{{--------------------------------test---------------------------------}}
-{{--<form method="POST" action="{{ route('loop_up') }}">--}}
-{{--    @csrf--}}
-{{--    <input type="hidden" name="node_id" value="{{ $node->id }}">--}}
-{{--    <button type="submit">Trigger loop_up function</button>--}}
-{{--</form>--}}
 
-
-<form method="POST" action="{{ route('handle_loop_up') }}">
-    @csrf
-    <input type="hidden" name="node_id" value="">
-    <button type="submit">Execute handleLoopUpRequest for node ID 11</button>
-</form>
-
-
-{{--@foreach ($nodeIds as $nodeId)--}}
-{{--    <form method="POST" action="{{ route('handle_loop_up') }}">--}}
-{{--        @csrf--}}
-{{--        <input type="hidden" name="node_id" value="{{ $nodeId }}">--}}
-{{--        <button type="submit">Execute handleLoopUpRequest for node ID {{ $nodeId }}</button>--}}
-{{--    </form>--}}
-{{--@endforeach--}}
-
-{{--@if ($lastNodeId !== null)--}}
-{{--    <p>Last Node ID from the loop: {{ $lastNodeId }}</p>--}}
-{{--@else--}}
-{{--    <p>No node ID found</p>--}}
-{{--@endif--}}
-
-{{--@extends('game.leaderboard')--}}

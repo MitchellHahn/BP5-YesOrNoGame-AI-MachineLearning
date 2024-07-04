@@ -1,6 +1,7 @@
+{{--verloren venster--}}
 <section>
     <form method="post">
-        <script defer src="http://localhost/bp5test1/public/js/game.js"></script>
+        <script defer src="http://localhost/bp5test1nieuwstebeste/public/js/game.js"></script>
         <h3>Game over</h3>
         You have <span id="points">0</span> points.<br />
         Enter your name:<br />
@@ -9,7 +10,7 @@
         {{ csrf_field() }}
         <button name="submit">Save game</button>
 
-
+            {{--reset punten--}}
         <script defer>
             function reset() {
                 // localStorage.removeItem('points');

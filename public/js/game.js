@@ -3,10 +3,13 @@ let countdownTimer = null;
 let points = 10;
 let questionsAsked = 0;
 
+// De belangrijkste functie, dit is de timer van het spel
+// Checken als timer bestaat, en dan uitvoeren van punten systeem
 if(timer) {
     let countdown = 30;
     const getPoints = localStorage.getItem("points") || 0;
 
+    // Als de speler meer dan 70 punten heeft, timer terugbrengen naar 10 secondes
     if(Number(getPoints) > 70) {
         countdown = countdown - countdown / 100 * Number(getPoints);
         if(countdown < 3) {
@@ -40,6 +43,7 @@ function addPoints (url) {
     }
     window.location.href = url;
 }
+
 function savePoints() {
     let leaderboard = localStorage.getItem("leaderboard");
     const currentPoints = localStorage.getItem('points') || 0;
@@ -59,14 +63,14 @@ function savePoints() {
     });
 
     localStorage.setItem("leaderboard", JSON.stringify(leaderboardData));
-    window.location.href = "http://localhost/bp5test1/public/start/1";
+    window.location.href = "http://localhost/bp5test1nieuwstebeste/public/start/1";
 }
 function gameOver() {
     console.log(window.location.href);
     alert('You didn\'t answer the question in time and lost all your points.');
     points = 0;
     localStorage.setItem("points", '0');
-    window.location.href = 'http://localhost/bp5test1/public/start/1';
+    window.location.href = 'http://localhost/bp5test1nieuwstebeste/public/start/1';
 }
 
 function getLeaderboard() {

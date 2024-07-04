@@ -20,31 +20,28 @@
 <div class="container-xl containerSupportedContent" >
     <table class="table table-bordered">
         <tr class="tablehead tableheadSupportedContent">
-            {{--      toon Klantnaam ,Debnummer, Straat, Huisnummer, Postcode, Stad en Land in het hoofd van de tabel      --}}
 
             <th class="tableheadfont tableheadfontSupportedContent">Naam</th>
 
             <th class="tableheadfont tableheadfontSupportedContent">Score</th>
-            <th class="tableheadfont tableheadfontSupportedContent"></th>
 
         </tr>
+{{--        for elke score --}}
         @foreach ($scores as $score)
 
             <tr class="tablerow">
-                {{-- toont de gegeven en tabel op deze manier op mobiel aparaten--}}
                 <td class="tablerowcell tablerowcellSupportedContent">
+                    {{-- naam van score--}}
                     {{ $score->naam	 }}
                     <div class=" tablerowcellSupportedContent">
-                        {{ $score->score }}<br />
 
                     </div>
 
-                    {{-- toont de Klantnaam ,Debnummer, Straat, Huisnummer, Postcode, Stad en Land van elke elke klant van de ingelogde gebruiker in de tabel --}}
                 </td>
+                                                {{--   core van score--}}
                 <td class="tablerowcell tablerowcellSupportedContent">{{ $score->score }}</td>
 
                 <td class="tablerowcell">
-                    {{-- functie dat de klant van de ingelogde gebruiker verwijdert --}}
 
                 </td>
             </tr>

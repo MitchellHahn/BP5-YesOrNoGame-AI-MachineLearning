@@ -1,7 +1,8 @@
+{{--voor character toevoegen--}}
 @if ($step === 1)
     <form method="post" action="">
         <input type="text" name="current_node" />
-        <h2>Add a new question [test]</h2>
+        <h2>Add a new question</h2>
 
         <input type="text" name="question" required />
 
@@ -9,7 +10,7 @@
             <button type="submit">Add question</button>
         </div>
     </form>
-
+{{--  voor vraag van om verschille te maken  --}}
     @elseif ($step === 2)
     <form method="post" action="">
         <input type="text" name="current_node" />

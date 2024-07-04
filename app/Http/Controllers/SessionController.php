@@ -19,13 +19,11 @@ class  SessionController
             'password' => 'required'
 
         ]);
-        // attempt to authenticate and log in the user
-        // based on the provided credentials
+
         if (auth()->attempt($attributes)){
             // redirect with a succes flash messgage
             return redirect('/')->with('success','welcome');
         }
-//  auth failed
 return back()
 ->withInput()
 ->withErrors(['email' => 'your provided credentials could not be verified']);

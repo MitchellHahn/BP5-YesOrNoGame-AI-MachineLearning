@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FailedNode;
 use App\Models\History;
 use App\Models\Node;
 use App\Models\Relation;
@@ -21,8 +22,8 @@ use function Ramsey\Uuid\setNodeProvider;
 
 class GameController extends Controller
 {
-    //
 
+//start pagina
     /**
      * Display a listing of the resource.
      *
@@ -32,51 +33,34 @@ class GameController extends Controller
     public function index(Node $node)
     {
 
-
-        // $tijd->toeslag_id = Toeslag::where('user_id', auth()->user()->id)->latest('created_at')->first()->id;
-
-//         $nodes = node::where('id','1')->first()->id;
-
         // Reset cache
         $this->reset_teller_cache();
 
+        // toont node 1 omdat het de hoogste is
         if(!$node->id) {
             return redirect("/start/1");
         } else {
             return view('game.start', compact('node'));
         }
 
-//        $NodeID = request()->page ?? 1; // First node
-//        $questionNodes = node::where('id', $NodeID)->get();
-//
-//        return view('game.start', compact('questionNodes'))
-//            ->with('nodes', $questionNodes)
-//            ->with("test", "TEST");
-        if ($node->relation === null) {
-
-
-
-//                $newnode = new node();
-//                $newrelation = new relation();
-//                $newrelation->rels
-
-        }
     }
 
 
-
-    //////////store chosen node in history
+    /**
+     * Display a listing of the resource.
+     */
+//speler gekozen node opslaan
     public function set_node_history(Node $node) {
 
 
-        // Search for the node in the Relation model
+        // zoekt naar parent node
         $relation = Relation::where('node_yes', $node->id)
             ->orWhere('node_no', $node->id)
             ->first();
 
         $parentId = $relation->parent_node;
 
-
+//gekozen node opslaan
         History::create([
             'node' => $node->id,
             'name' => $node->name
@@ -85,48 +69,53 @@ class GameController extends Controller
 
     }
 
-
+    /**
+     * Display a listing of the resource.
+     */
     public function handleLoopUpRequest($currentVisitedNode) {
+        // Selecteer knopen uit de geschiedenis die meer dan 3 keer voorkomen
+
         $histories = History::select('node')
             ->groupBy('node')
             ->havingRaw('COUNT(*) > 3')
             ->get();
 
+        // Haal de knoop-ID's die meer dan 3 keer voorkomen
         $FourTimesNodes = $histories->pluck('node')->toArray();
         $results = [];
 
         foreach ($FourTimesNodes as $FourTimesNode) {
-            // Initialize an array to store visited node IDs
+            // Initialiseer een array om bezochte knoop-ID's op te slaan
             $visitedNodeIds = [];
 
-            // Find the node based on the ID
+            // Zoek de knoop op basis van de ID
             $node = Node::find($FourTimesNode);
 
-            // Check if the node exists
+            // Controleer of de knoop bestaat
             if ($node) {
-                // Loop until there is no parent node found
+                // Herhaal totdat er geen ouderknoop meer wordt gevonden
                 while ($node !== null) {
-                    // Search for the node in the Relation model
+                    // Zoek naar de knoop in het Relation-model
                     $relation = Relation::where('node_yes', $node->id)
                         ->orWhere('node_no', $node->id)
                         ->first();
 
                     if ($relation) {
-                        // Get the parent node
+                        // Haal de ouderknoop op
                         $parentId = $relation->parent_node;
-                        // Check if $parentId is an integer (node ID)
+                        // Controleer of $parentId een integer is (knoop-ID)
                         if (is_int($parentId)) {
-                            // Store the visited node ID
+                            // Sla de bezochte knoop-ID op
                             $visitedNodeIds[] = $node->id;
 
-                            // Update $node for the next iteration
+                            // Werk $node bij voor de volgende iteratie
                             $node = Node::find($parentId);
                         } else {
-                            // If $parentId is not an integer, exit the loop
+                            // Als $parentId geen integer is, verlaat de loop
                             $node = null;
                         }
                     } else {
-                        // If no parent node is found, exit the loop
+                        // Als er geen ouderknoop wordt gevonden, verlaat de loop
                         $node = null;
                     }
                 }
@@ -134,19 +123,14 @@ class GameController extends Controller
 
 
 
-            // Check if current visited node is in the visited nodes list
+// Controleer of de huidige bezochte knoop in de lijst van bezochte knopen zit
             $isVisited = in_array($currentVisitedNode, $visitedNodeIds);
-            // Store the visitation status of the node
+// Sla de bezoekstatus van de knoop op
             $results[$FourTimesNode] = $isVisited ? 'visited' : 'not visited';
         }
 
 
-
-//        $test = $result-id;
-//        dd($successNodeIds);
-
-
-        // Extract the nodes that were visited
+// Haal de knopen op die zijn bezocht
         $visitedNodeIds = [];
         foreach ($results as $nodeId => $status) {
             if ($status === 'visited') {
@@ -154,7 +138,7 @@ class GameController extends Controller
             }
         }
 
-        // If visitedNodeIds is empty, return early
+// Als visitedNodeIds leeg is, keer vroegtijdig terug
         if (empty($visitedNodeIds)) {
             return null; // or any other appropriate action
         }
@@ -162,45 +146,33 @@ class GameController extends Controller
 
         Cache::increment('SmartGuess_Executed');
 
+// Verhoog de cache voor het aantal uitgevoerde SmartGuess
 
         if(Cache::has('SmartGuess_Executed') && !Cache::has('FindFourTimesNode_InSmartGuess_SuccessNodes_Executed')){
 
             $FourTimes_And_SmartGuessSuccessNode = $this->FindFourTimesNode_InSmartGuess_SuccessNodes($visitedNodeIds);
 
-          if ($FourTimes_And_SmartGuessSuccessNode !== null){
+            if ($FourTimes_And_SmartGuessSuccessNode !== null){
 
-                  $randomKey = array_rand($FourTimes_And_SmartGuessSuccessNode);
-                  $randomNodeId = $FourTimes_And_SmartGuessSuccessNode[$randomKey];
-//dd($randomNodeId);
-                  $relation = Relation::where('node_yes', $randomNodeId)
-                      ->orWhere('node_no', $randomNodeId)
-                      ->first();
-    //            dd($relation);
+                $randomKey = array_rand($FourTimes_And_SmartGuessSuccessNode);
+                $randomNodeId = $FourTimes_And_SmartGuessSuccessNode[$randomKey];
+                $relation = Relation::where('node_yes', $randomNodeId)
+                    ->orWhere('node_no', $randomNodeId)
+                    ->first();
 
-                  if ($relation) {
-                      $parentId = $relation->parent_node;
-                      if ($parentId) {
-                          return $parentId;
-                      }
-                  }
+                if ($relation) {
+                    $parentId = $relation->parent_node;
+                    if ($parentId) {
+                        return $parentId;
+                    }
+                }
 
-          }
+            }
 
         }
 
 
-//        Cache::get('FindFourTimesNode_InSmartGuess_SuccessNodes_Executed');
-
-
-        //create cash when SmartGuess is Executed
-
-//        Cache::put('SmartGuess_InputNode', $currentVisitedNode, 60);
-
-//        $test = Cache::get('SmartGuess_InputNode');
-//
-//dd($test);
-
-        // Continue with the rest of the function if visitedNodeIds is not empty
+// Ga verder met de rest van de functie als visitedNodeIds niet leeg is
         $randomKey = array_rand($visitedNodeIds);
         $randomNodeId = $visitedNodeIds[$randomKey];
 
@@ -216,44 +188,16 @@ class GameController extends Controller
             }
         }
 
-        return null; // Return null if no parent ID found
+        return null; // Return  null als er geen ouder-ID wordt gevonden
     }
 
 
 
-
-
-
-//    function findMatchingObjects($results) {
-//        $successNodeIds = SuccessNode::pluck('node')->toArray();
-
-
-// Function to find matching numbers
-//        function findMatchingNumbers($visitedNodeIds) {
-//             Fetch the SmartGuess_SuccessNodes from the database
-//            $SmartGuess_SuccessNodes = SuccessNode::pluck('node')->toArray();
-
-    // Initialize the $test array
-//            $test = [];
-
-    // Loop through each SmartGuess_SuccessNode
-//            foreach ($SmartGuess_SuccessNodes as $SmartGuess_SuccessNode) {
-    // Check if the SmartGuess_SuccessNode exists in visitedNodeIds
-//                if (in_array($SmartGuess_SuccessNode, $visitedNodeIds)) {
-    // If it exists, add it to $test array
-//                    $test[] = $SmartGuess_SuccessNode;
-//                }
-//            }
-//
-//            dd($test); // Debugging output
-//
-//            return $test;
-//        }
-
-
-
+    /**
+     * Display a listing of the resource.
+     */
     function FindFourTimesNode_InSmartGuess_SuccessNodes($visitedNodeIds) {
-        // Fetching success nodes from the database as an array of integers
+        // Ophalen van succesknopen uit de database als een array van gehele getallen
         $SmartGuess_SuccessNodes = SuccessNode::pluck('node')->toArray();
 
         $FourTimes_And_SmartGuessSuccess_Node = [];
@@ -264,9 +208,9 @@ class GameController extends Controller
         echo "SmartGuess Success Nodes: ";
         print_r($SmartGuess_SuccessNodes);
 
-        // Loop through each visited node ID
+        // Loop door elke bezochte knoop-ID
         foreach ($visitedNodeIds as $visitedNodeId) {
-            // Debugging output for each iteration
+            // Debugging output voor elke iteratie
             echo "Checking if $visitedNodeId is in success nodes...\n";
             if (in_array($visitedNodeId, $SmartGuess_SuccessNodes)) {
                 echo "Match found: $visitedNodeId\n";
@@ -274,7 +218,7 @@ class GameController extends Controller
             }
         }
 
-        // Output matches for debugging purposes
+        // als geen node is gevonden
 
         if (empty($FourTimes_And_SmartGuessSuccessNode)) {
             $FourTimes_And_SmartGuessSuccessNode = null;
@@ -286,9 +230,6 @@ class GameController extends Controller
 
 
 
-// Find matches
-//        $matchingNumbers = findMatchingNumbers($results);
-//    }
 
 
 
@@ -303,34 +244,32 @@ class GameController extends Controller
      */
     public function yes(Node $node)
     {
-        // get current node
+        // Haal de huidige knoop op
         $currentNodeId = $node->id;
 
-        // Capture click
+        // Haal de huidige knoop op
         Cache::increment('click_count');
 
-        // Retrieve click count
+        // Haal het aantal klikken op
         $totalClicks = Cache::get('click_count', 0);
 
         $relation = Relation::where('parent_node', $currentNodeId)
             ->first();
-        // get the node from kolom "node_no" in the same row as the $currentNodeId
+        // Haal de knoop uit kolom "node_no" in dezelfde rij als de $currentNodeId
 
-        // fu
+        // Voer de functie uit als de speler 2 vragen heeft beantwoord
         if ($totalClicks == 2) {
-//            $nodeIdToCheck = $currentNodeId;
             $smartGuessInputNodeId = $relation->node_yes;
 
 
             $smartGuessInputNode = Node::findOrFail($smartGuessInputNodeId);
 
-            // Call SmartGuess method with the Node instance
+            // Roep de SmartGuess-methode aan met de Node-instantie
             return $this->SmartGuess($smartGuessInputNode->id, $totalClicks);
 
         }
 
-//        if (Cache::has('SmartGuess_Executed') && $node->question && Str::startsWith("answer", Str::lower($node->question))) {
-
+////////////////////////////////// functie SM node Registreren///////////////////////////////////
         $answer = $node->answer;
         if (Cache::has('SmartGuess_Executed') && !Cache::has('SmartGuess_Failed') && Node::where('answer', $answer)->exists()) {
             $parentNode = Node::where('answer', $answer)->first();
@@ -339,9 +278,9 @@ class GameController extends Controller
                 $relation = Relation::where('parent_node', $node->id)->first();
                 $nodeYes = $relation->node_yes;
 
-                // Check if a SuccessNode already exists for the current nodeYes
+                // Controleer of er al een SuccessNode bestaat voor de huidige nodeYes
                 if (!SuccessNode::where('node', $nodeYes)->exists()) {
-                    // Create the SuccessNode record
+                    // Maak het SuccessNode-record aan
                     SuccessNode::create([
                         'node' => $nodeYes,
                     ]);
@@ -354,11 +293,11 @@ class GameController extends Controller
 
                     $this->set_node_history($test);
 
-                    // Log information
+                    // Log informatie
                     Log::info('SuccessNode created for node with ID ' . $test);
                 }
             } else {
-                // Log that the conditions were not met
+                // Log dat de voorwaarden niet voldaan zijn
                 Log::info('Conditions not met for creating SuccessNode for node with ID ' . $node->id);
 
                 $this->set_node_history($node);
@@ -367,6 +306,40 @@ class GameController extends Controller
             }
 
         }
+
+////////////////////////////////// functie chek als SM node in failed path ligt///////////////////////////////////
+
+        if (Cache::has('SmartGuess_Executed') && Cache::has('SmartGuess_Failed')) {
+            $relation = Relation::where('parent_node', $node->id);
+            $currentNodeNodeYesRelation = $relation->pluck('node_yes')->toArray();
+
+            $currentNode_IsIn_FailedNodePath = $this->checkIfCurrentNodeLiesInFailedNodePath($currentNodeNodeYesRelation);
+        }
+
+////////////////////////////////// functie add character after SM node failed  and playing is SG node path/////////////////////////////////
+        if (Cache::has('SmartGuess_Executed') && Cache::has('SmartGuess_Failed') && Cache::has('CurrentNode_LiesWithin_FailedNodePath')) {
+
+            $currentNodeId = $node->id;
+            $latestFailNode = FailedNode::latest('created_at')->first();
+
+            $relation = Relation::where('parent_node', $currentNodeId)->first();
+
+                if ($relation == null && $node->answer !== null) {
+                    $this->set_node_history($node);
+                    return view('game.gameover');
+                }
+
+            $related_node_id = $relation->node_yes;
+
+                if ($latestFailNode->node == $related_node_id) {
+                    Cache::increment('SmartGuess_Executed&Failed_ButAddNewCharacter');
+
+                    return view('game.AddCorrectCharacter_AfterSMFailed', compact( 'related_node_id'));
+                }
+        }
+
+
+////////////////////////////////// functie karakter voor spelling/////////////////////////////////
 
         if ($node->relation) {
             if ($node->question && Str::startsWith("answer", Str::lower($node->question))) {
@@ -392,59 +365,103 @@ class GameController extends Controller
     {
 
 
-        // Capture each click
+        // Leg elke klik vast
         Cache::increment('click_count');
 
-        // Retrieve click count
+        // Haal het aantal klikken op
         $totalClicks = Cache::get('click_count', 0);
 
-        // get current node
+        // Haal de huidige knoop op
         $currentNodeId = $node->id;
 
 
         $relation = Relation::where('parent_node', $currentNodeId)
             ->first();
-        // get the node from kolom "node_no" in the same row as the $currentNodeId
+        // Haal de knoop uit kolom "node_no" in dezelfde rij als de $currentNodeId
 
 
-//////////////////function execute SmartGues after the player has answered 2 questions//////////////////////
+        //////////////////functie SmartGuess nadat de speler 2 vragen heeft beantwoord//////////////////////
         if ($totalClicks == 2) {
             $smartGuessInputNodeId = $relation->node_no;
 
             $smartGuessInputNode = Node::findOrFail($smartGuessInputNodeId);
             return $this->SmartGuess($smartGuessInputNode->id, $totalClicks);
         }
-        // dd($currentNodeId);
 
         $relation = null;
-        /*
-        $random_node_guess = $this->random_guess($node);
 
-        if($random_node_guess) {
-            $node = $random_node_guess;
-        }
-        */
+        //////////////////functie reset  naar SG node//////////////////////
 
         if (Cache::has('SmartGuess_Executed') && $node->relation === null && !Cache::has('SmartGuess_Failed')) {
 
             Cache::increment('SmartGuess_Failed');
-            //             Retrieve SmartGuess cache for input SmartGuess
+            // Haal de SmartGuess-cache op voor de invoer van SmartGuess
 
-//            dd($node);
+            // Registreer mislukte smart guess predictie knoop
+            $this->Register_SmartGuess_FailNote($node);
+
+            // Reset naar smart guess invoer knoop
             return $this->ResetTo_SmartGuessInputNode($node);
 
         }
 
+        /////////////////////////functie checkIfCurrentNodeLiesInFailedNodePath////////////////////////
+        if (Cache::has('SmartGuess_Executed') && Cache::has('SmartGuess_Failed')) {
+            $relation = Relation::where('parent_node', $node->id);
+            $currentNodeNodeNoRelation = $relation->pluck('node_no')->toArray();
+
+            $currentNode_IsIn_FailedNodePath = $this->checkIfCurrentNodeLiesInFailedNodePath($currentNodeNodeNoRelation);
+        }
+
+        ////////////////////functie AddCorrectCharacter_AfterSMFailed_NotInFailedNodePath///////////////////////
+        if (Cache::has('SmartGuess_Executed') && Cache::has('SmartGuess_Failed') && Cache::has('CurrentNode_DoesNotLieIn_FailedNodePath')) {
+            $currentNodeId = $node->id;
+
+            $relation = Relation::where('parent_node', $currentNodeId)->first();
+
+            if ($relation == null && $node->answer !== null) {
+                Cache::increment('SmartGuess_Executed&Failed_ButAddNewCharacter');
+
+                //                 Assuming $relation and other variables are defined
+                return view('game.AddCorrectCharacter_AfterSMFailed_NotInFailedNodePath', compact( 'currentNodeId'));
+            }
+        }
+
+
+        /////////////funntie chek failed node path//////////////
+        if (Cache::has('SmartGuess_Executed') && Cache::has('SmartGuess_Failed') && Cache::has('CurrentNode_LiesWithin_FailedNodePath')) {
+            $currentNodeId = $node->id;
+            $latestFailNode = FailedNode::latest('created_at')->first();
+
+            $relation = Relation::where('parent_node', $currentNodeId)->first();
+
+            echo "Is playing in failed node path";
+
+                if ($relation == null && $node->answer !== null) {
+                    Cache::increment('SmartGuess_Executed&Failed_ButAddNewCharacter');
+
+                    return view('game.AddCorrectCharacter_AfterSMFailed_NotInFailedNodePath', compact( 'currentNodeId'));
+                }
+
+            $related_node_id = $relation->node_no;
+
+                if ($latestFailNode->node == $related_node_id) {
+                    Cache::increment('SmartGuess_Executed&Failed_ButAddNewCharacter');
+
+                    return view('game.AddCorrectCharacter_AfterSMFailed', compact( 'related_node_id'));
+                }
+        }
+
+
+        /////////////////////functie voorspel karacter ////////////////////////
         if($node->question && Str::startsWith("answer", Str::lower($node->question))) {
             $node->question = "Is this your character?";
 
-//            dd($node);
 
         }
+
         if($node->relation !== null && $node->relation->id !== null ) {
             $relation = $node->relation->no;
-
-//            dd($relation);
 
 
         }
@@ -452,29 +469,108 @@ class GameController extends Controller
 
     }
 
+    /**
+     * Display a listing of the resource.
+     */
+// functie voor om te kijken als huidige node is failed node path is
+    public function checkIfCurrentNodeLiesInFailedNodePath($currentVisitedNodeIds)
+    {
+        // Haal de meest recente gefaalde knoop op
+        $latestFailNode = FailedNode::latest('created_at')->first();
+
+        if (!$latestFailNode) {
+            return false;
+        }
+
+        // Haal de knoop-ID van de meest recente gefaalde knoop op
+        $nodeId = $latestFailNode->node;
+
+        // Initialiseer het pad van gefaalde knopen als een array
+        $failedNodePath = [];
+
+        // Begin met het traceren van het pad vanaf de gefaalde knoop
+        $node = Node::find($nodeId);
+
+        while ($node !== null) {
+            // Haal de relatie op voor de huidige knoop
+            $relation = Relation::where('node_yes', $node->id)
+                ->orWhere('node_no', $node->id)
+                ->first();
+
+            if ($relation) {
+                // Voeg de huidige knoop toe aan het pad van gefaalde knopen
+                $failedNodePath[] = $node->id;
+                // Ga naar de ouderknoop
+                $parentId = $relation->parent_node;
+                $node = Node::find($parentId);
+            } else {
+                // Als er geen relatie wordt gevonden, stopt de loop
+                break;
+            }
+        }
+
+        // Controleer of een van de huidige bezochte knoop-ID's in het pad van gefaalde knopen zit
+        foreach ($currentVisitedNodeIds as $currentVisitedNodeId) {
+            if (in_array($currentVisitedNodeId, $failedNodePath)) {
+
+                // Verhoog de cache voor het aantal keren dat de huidige knoop binnen het pad van gefaalde knopen ligt
+                Cache::increment('CurrentNode_LiesWithin_FailedNodePath');
+                $currentNode_IsIn_FailedNodePath = 'true';
+                return $currentNode_IsIn_FailedNodePath;
+
+                // Ontwikkel het pad van gefaalde knopen voor debugging doeleinden
+
+            } else {
+
+                // Verhoog de cache voor het aantal keren dat de huidige knoop niet binnen het pad van gefaalde knopen ligt
+                Cache::increment('CurrentNode_DoesNotLieIn_FailedNodePath');
+
+                $currentNode_IsIn_FailedNodePath = 'false';
+                return $currentNode_IsIn_FailedNodePath;
+
+            }
+
+        }
+        return false;
+    }
 
 
+    /**
+     * Display a listing of the resource.
+     */
+//smart guess functie
     public function SmartGuess($currentNodeId, $totalClicks) {
         Log::info("Entering SmartGuess with node ID: $currentNodeId and total clicks: $totalClicks");
 
+        // Controleert of het totaal aantal klikken gelijk is aan 2 dan voer het smartguess uit
         if ($totalClicks == 2) {
+
+            // Haalt de eerste relatie op waar de parent_node gelijk is aan de huidige knoop-ID
             $relation = Relation::where('parent_node', $currentNodeId)->first();
+
+            // Handelt de opzoekverzoek af en haalt de voorspelde knoop-ID op
             $smartGuessPredictionNodeId = $this->handleLoopUpRequest($currentNodeId);
 
+            // Logt de voorspelde knoop-ID
             Log::info("SmartGuessPredictionNodeId: $smartGuessPredictionNodeId");
 
+
+            // Controleert of de voorspelde knoop-ID bestaat en niet gelijk is aan de huidige knoop-ID
             if ($smartGuessPredictionNodeId && $smartGuessPredictionNodeId != $currentNodeId) {
+
+                // Redirect naar de SmartGuess route met de voorspelde knoop-ID en totaal aantal klikken
                 return redirect()->route('SmartGuess', ['node' => $smartGuessPredictionNodeId, 'totalClicks' => $totalClicks]);
             } else {
+
+                // Logt een waarschuwing om een loop te voorkomen als de voorspelde knoop-ID gelijk is aan de huidige knoop-ID
                 Log::warning("Redirect prevented to avoid a loop: SmartGuessPredictionNodeId ($smartGuessPredictionNodeId) is the same as currentNodeId ($currentNodeId)");
             }
         }
 
 
-        // Example data to pass to the view, you may replace this as per your logic
         $node = Node::find($currentNodeId);
 
-        // Pass the node and smartGuessPredictionNodeId to the view
+        // Geeft de knoop en de voorspelde knoop-ID door aan de view
         return view('SmartGuess', ['node' => $node, 'smartGuessPredictionNodeId' => $smartGuessPredictionNodeId]);
     }
 
@@ -487,66 +583,71 @@ class GameController extends Controller
      */
     public function ResetTo_SmartGuessInputNode(Node $node) {
 
+// haalt SG input node op
         $SmartGuess_InputNode = Cache::get('SmartGuess_InputNode');
-//dd($SmartGuess_InputNode);
 
-
+// wordt onder gebruikt
         $SmartGuess_PredictionCharater_Node = $node->id;
 
-
+// lege path
         $SmartGuess_PredictionCharater_Path = [];
 
-        // Find the node based on the ID
+        // zoek naar de node met ID
         $node = Node::find($SmartGuess_PredictionCharater_Node);
 
-        // Check if the node exists
+        // kijk als de node bestaat
         if ($node) {
-            // Loop until there is no parent node found
+            // Loop tot dat er geen parent meer is
             while ($node !== null) {
                 // Search for the node in the Relation model
                 $relation = Relation::where('node_yes', $node->id)
                     ->orWhere('node_no', $node->id)
                     ->first();
 
+                //als er een relatie is
                 if ($relation) {
-                    // Get the parent node
+                    // pak parent node
                     $parentId = $relation->parent_node;
-                    // Check if $parentId is an integer (node ID)
+                    // controleer als $parentId een integer is (node ID)
                     if (is_int($parentId)) {
-                        // Store the visited node ID
+                        // path van node opslaan ID
                         $SmartGuess_PredictionCharater_Path[] = $node->id;
 
-                        // Update $node for the next iteration
+                        // $node aanpassen voor volgende loop
                         $node = Node::find($parentId);
                     } else {
-                        // If $parentId is not an integer, exit the loop
+                        // als $parentId geen integer is, loop stoppen
                         $node = null;
                     }
                 } else {
-                    // If no parent node is found, exit the loop
+                    // als geen parent node is gevonden, loop stoppen
                     $node = null;
                 }
             }
 
-
+            // depath omdraaien naar boven naar beneden
             $SmartGuess_PredictionCharater_Path = array_reverse($SmartGuess_PredictionCharater_Path);
 
-            // Check if current visited node is in the visited nodes list
+            // zoek de SG input node in path
             $SmartGuess_InputNode = $SmartGuess_PredictionCharater_Path[1];
 
-//            dd($SmartGuess_InputNode);
+            // pak id van de SG input node
             $node = Node::find($SmartGuess_InputNode);
-//dd($node);
 
-            // Return the view with the node and SmartGuess_InputNode
+            // SG input node returnen
             return view('SmartGuessFailed', ['node' => $node, 'SmartGuess_InputNode' => $SmartGuess_InputNode]);
 
         }
     }
 
 
+
+
+    /**
+     * failed note registreren
+     */
     public function Register_SmartGuess_SuccessNote(Node $node) {
-        // Search for the node in the Relation model
+
         $relation = Relation::where('node_yes', $node->id)
             ->orWhere('node_no', $node->id)
             ->first();
@@ -554,15 +655,40 @@ class GameController extends Controller
         if ($relation) {
             $parentId = $relation->parent_node;
 
-            // Create the SuccessNode record
+            // opslaan Success Node
             SuccessNode::create([
                 'node' => $node->id,
             ]);
 
             return view('game.gameover');
         }
+    }
 
 
+    /**
+     * failed note registreren
+     */
+
+    public function Register_SmartGuess_FailNote(Node $node) {
+
+        $relation = Relation::where('node_yes', $node->id)
+            ->orWhere('node_no', $node->id)
+            ->first();
+
+        if ($relation) {
+            $parentId = $relation->parent_node;
+
+//             failed node opslaann
+            FailedNode::create([
+                'node' => $node->id,
+            ]);
+
+        }
+
+
+        /**
+        * all cache ophalen
+         */
 
         function getCachedKeys()
         {
@@ -572,12 +698,12 @@ class GameController extends Controller
 
             foreach ($files as $file) {
                 $fileName = $file->getFilename();
-                // Process the filename to get the cache key
                 $keys[] = $fileName;
             }
 
             return $keys;
         }}
+
 
 
     ///voor het toevoegen van een de juiste character en een vraags als de gebruiker heeft gewonnen.
@@ -593,7 +719,6 @@ class GameController extends Controller
 
         //////node aanmaken en opslaan
         $request->validate([
-            //table tijd
             'question' => 'required',
             'answer' => 'required',
 
@@ -601,9 +726,7 @@ class GameController extends Controller
 
         $data = $request->except(['_token', 'current_node']);
 
-        // dd($node);
 
-        // dd(Node::latest()->first());
 
         foreach($data as $key => $value) {
             $newNode = Node::create([
@@ -613,10 +736,10 @@ class GameController extends Controller
             $newNode->timestamps = false;
             $newNode->save();
 
+            //als de node een antwoord is voert het dit zodat het gebruikt kan worden als het verplaats moet worden
             if($key === "answer") {
                 $newrelation = new Relation();
                 $newrelation->timestamps = false;
-                // $newrelation->node_yes = Node::orderBy("id")->first()->id;
                 $newrelation->node_yes = $newNode->id;
 
                 $newrelation->node_no = $request->input("current_node");
@@ -633,48 +756,14 @@ class GameController extends Controller
             }
         }
 
-
-
-
-        /*
-        foreach($data as $key => $value) {
-            $newNode = Node::create([
-                "question" => $value,
-                "answer" => $value
-            ]);
-            $newNode->save();
-
-            $newrelation = new Relation();
-            $newrelation->node_yes = $newNode->id;
-            $newrelation->parent_node = Relation::where()->latest('created_at')->first()->id;
-
-
-            //foute node/character wordt altijd naar node_no in de nieuwe relatie verplaats
-            $newrelation->node_no = $node->id;
-
-            $newrelation->save();
-
-            dd($newrelation);
-
-            //om de voorgesteld note te ontvangen
-            $oldRelation = Relation::where('node_yes', $request->current_node)->first();
-        }
-        */
-
-
-
-        //////////////////////////////scorebouard//////////////////////////////////////////
-
-        ///////////////////////////////////////////
-
         return redirect("/start");
-        // return view('game.start', compact('node', 'relation'));
-
-
 
     }
 
-    ////////////////scoreboard///////////
+
+
+
+    //leader board
     /**
      * deze functie haalt alle gebruikers en administrators op van tabel "users"
      * toont via de "gebruikers" view (blade) alle gebruikers en administrators op van tabel "users"
@@ -684,15 +773,16 @@ class GameController extends Controller
     public function leaderboard()
     {
 
-        // toont via de "User" model, alle gebruikers en administrators van tabel users
-        // sorteert alle gebruikers en administrators op alphabetische volgorde
+        // alle scores sorteren
         $scores = Score::orderBy('score', 'DESC')->paginate(1000);
 
         return view('game.leaderboard',compact('scores'))
             ->with('i', (request()->input('page', 1) - 1) * 4);
     }
 
-    /////////////////score doorgegven////////////////
+
+
+    //score doorgegven
     /**
      * deze functie toont de registratie forumulier (pagina 'registratie') waarin accounts kunnn worden aangemaakt
      *
@@ -705,6 +795,9 @@ class GameController extends Controller
         return view('game.gameover');
     }
 
+
+
+    //cash resetten
     /**
      * Leeg teller cache
      */
@@ -712,7 +805,9 @@ class GameController extends Controller
         Cache::clear();
     }
 
-    /////////////////score opslaan//////////////////////
+
+
+    //score opslaan
     /**
      * deze functie registreert een toeslag aan een zpper.
      * Maakt een nieuwe rij aan in tabel "toeslagen".
@@ -724,25 +819,22 @@ class GameController extends Controller
     public function score_opslaan(Request $request, Score $score)
     {
 
-        // haalt de ingevulde data op van alle invoer vakken van de "toeslag aanmaken" venster
-        // controleert als de "required" vakken ingevuld zijn
+        // ingevulde score op pakker
         $request->validate([
-            //tabel toeslagen
             'naam' => '',
             'score' => '',
 
         ]);
 
-        // maakt een nieuwe toeslag aan van de doorgeven gegevens
+        // maakt een nieuwe score
         $score = Score::create($request->all());
 
-        // slaat de nieuwe toeslag op met de doorgegeven gegevens op in table "toeslagen"
-        // maakt gebruik van de model "Toeslag"
+        // score opdlaan
         $score->save();
 
+        //score sorteren om op te sturen
         $scores = Score::orderBy('score', 'DESC')->get();
 
-        // als de toeslag is geregistreerd, redirect het systeem weer naar de "toeslag" pagina van de medewerkers module (Toeslagen.blade.php)
         return view('game.leaderboard', compact('scores'))
             ->with('success', 'score is opgeslagen');
     }

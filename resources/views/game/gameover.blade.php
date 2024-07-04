@@ -1,3 +1,4 @@
+{{--verloren venster--}}
 <section>
     <form method="post">
         <script defer src="{{ asset('js/game.js') }}?v={{ time() }}"></script>
@@ -9,7 +10,7 @@
         {{ csrf_field() }}
         <button name="submit">Save game</button>
 
-
+        {{--reset punten--}}
         <script defer>
             function reset() {
                 // localStorage.removeItem('points');

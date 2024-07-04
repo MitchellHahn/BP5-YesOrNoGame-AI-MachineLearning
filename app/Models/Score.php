@@ -1,4 +1,5 @@
 <?php
+//mode voor score
 
 namespace App\Models;
 
@@ -11,7 +12,7 @@ class Score extends Model
     public $timestamps = false;
     protected $table = 'score';
     protected $fillable = [
-        //table
+        //table score
         'naam', 'score',
     ];
 

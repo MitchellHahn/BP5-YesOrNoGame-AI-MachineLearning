@@ -1,21 +1,20 @@
 <?php
-//mode voor success node
 
+//voor failed node
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class SuccessNode extends Model
+class FailedNode extends Model
 {
     use HasFactory;
 
-    protected $table = 'smart_guess_success_nodes';
+    protected $table = 'smart_guess_fail_nodes';
     protected $fillable = [
-        //table smart_guess_success_nodes
+        //table smart_guess_fail_nodes
         'node', 'id', 'created_at'
     ];
-
 
 
 }
